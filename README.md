@@ -26,4 +26,4 @@ ToyCompare is a web application that allows users to search for and compare toys
 
 ## Deployment
 
-This project is set up to be easily deployed on Vercel. Connect your GitHub repository to Vercel for automatic deployments.
+On Vercel
