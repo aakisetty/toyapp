@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
-import Image from 'next/image'
+import { Img } from 'react-image'
 
 interface ToyInfo {
   name: string
@@ -43,7 +43,7 @@ export default function ToySearch() {
           model: "llama-3.1-sonar-small-128k-online",
           messages: [
             { role: 'system', content: 'You are a helpful assistant that provides information about toys.' },
-            { role: 'user', content: `Provide detailed information about the toy: ${toyQuery}. Include name, image URL, price on Amazon and Target, description, age range, cognitive skills it develops, and average review score with review count. Format the response as JSON with keys: name, imageUrl, price (with nested amazon and target), description, ageRange, cognitiveSkills (as an array), and reviews (with nested average and count). Do not include any comments in the JSON. Ensure the JSON is valid and complete. Use null for any missing information.` }
+            { role: 'user', content: `Provide detailed information about the toy: ${toyQuery}. Include name, price on Amazon and Target, description, age range, cognitive skills it develops, and average review score with review count. Format the response as JSON with keys: name, price (with nested amazon and target), description, ageRange, cognitiveSkills (as an array), and reviews (with nested average and count). Do not include any comments in the JSON. Ensure the JSON is valid and complete. Use null for any missing information.` }
           ]
         })
       })
@@ -77,11 +77,17 @@ export default function ToySearch() {
 
       // Parse the cleaned JSON string
       const parsedInfo: ToyInfo = JSON.parse(cleanJsonString)
-      
-      // Ensure imageUrl is complete or null
-      if (parsedInfo.imageUrl && !parsedInfo.imageUrl.startsWith('http')) {
-        parsedInfo.imageUrl = `https:${parsedInfo.imageUrl}`
-      } else if (!parsedInfo.imageUrl) {
+
+      // Fetch image URL
+      try {
+        const imageResponse = await fetch(`/api/image-search?query=${encodeURIComponent(parsedInfo.name + ' toy')}`)
+        if (!imageResponse.ok) {
+          throw new Error(`Image search failed: ${imageResponse.status}`)
+        }
+        const imageData = await imageResponse.json()
+        parsedInfo.imageUrl = imageData.imageUrl || null
+      } catch (imageError) {
+        console.error('Error fetching image:', imageError)
         parsedInfo.imageUrl = null
       }
 
@@ -129,6 +135,7 @@ export default function ToySearch() {
             onChange={(e) => setToyQuery(e.target.value)}
             placeholder="Enter toy name"
             className="flex-grow"
+            aria-label="Toy name"
           />
           <Button type="submit" disabled={isLoading}>
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Search'}
@@ -137,7 +144,7 @@ export default function ToySearch() {
       </form>
 
       {error && (
-        <div className="text-red-500 mb-4">{error}</div>
+        <div className="text-red-500 mb-4" role="alert">{error}</div>
       )}
 
       {toyInfo && (
@@ -148,12 +155,17 @@ export default function ToySearch() {
           <CardContent className="space-y-4">
             {toyInfo.imageUrl ? (
               <div className="flex justify-center">
-                <Image
+                <Img
                   src={toyInfo.imageUrl}
                   alt={toyInfo.name}
-                  width={300}
-                  height={300}
-                  className="rounded-lg"
+                  loader={<div className="flex justify-center items-center h-[300px] bg-gray-200 rounded-lg">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  </div>}
+                  unloader={<div className="flex justify-center items-center h-[300px] bg-gray-200 rounded-lg">
+                    <p className="text-gray-500">Failed to load image</p>
+                  </div>}
+                  className="rounded-lg object-contain max-w-full h-auto"
+                  style={{ maxHeight: '300px' }}
                 />
               </div>
             ) : (
@@ -161,17 +173,31 @@ export default function ToySearch() {
                 <p className="text-gray-500">No image available</p>
               </div>
             )}
-            <p><strong>Price:</strong> 
-              Amazon: {formatPrice(toyInfo.price.amazon)}, 
-              Target: {formatPrice(toyInfo.price.target)}
-            </p>
-            <p><strong>Description:</strong> {toyInfo.description}</p>
-            <p><strong>Age Range:</strong> {toyInfo.ageRange}</p>
-            <p><strong>Cognitive Skills:</strong> {toyInfo.cognitiveSkills.join(', ')}</p>
-            <p><strong>Reviews:</strong> 
-              {toyInfo.reviews.average !== null ? `${toyInfo.reviews.average.toFixed(1)}/5` : 'N/A'} 
-              ({toyInfo.reviews.count !== null ? `${toyInfo.reviews.count} reviews` : 'N/A'})
-            </p>
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Price</h2>
+              <ul className="list-disc list-inside">
+                <li>Amazon: {formatPrice(toyInfo.price.amazon)}</li>
+                <li>Target: {formatPrice(toyInfo.price.target)}</li>
+              </ul>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Description</h2>
+              <p>{toyInfo.description}</p>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Details</h2>
+              <ul className="list-disc list-inside">
+                <li><strong>Age Range:</strong> {toyInfo.ageRange}</li>
+                <li><strong>Cognitive Skills:</strong> {toyInfo.cognitiveSkills.join(', ')}</li>
+              </ul>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Reviews</h2>
+              <p>
+                {toyInfo.reviews.average !== null ? `${toyInfo.reviews.average.toFixed(1)}/5` : 'N/A'} 
+                ({toyInfo.reviews.count !== null ? `${toyInfo.reviews.count} reviews` : 'N/A'})
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}
