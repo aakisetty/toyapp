@@ -1,6 +1,6 @@
 # ToyCompare
 
-ToyCompare is a web application that allows users to search for and compare toys, providing information about their prices, developmental benefits, and reviews.
+ToyCompare is a web application that allows users to search for and compare toys, providing information about their prices, developmental benefits, and reviews. Image feature is now added via search api
 
 ## Getting Started
 
